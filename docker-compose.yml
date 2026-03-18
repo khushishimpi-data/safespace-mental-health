@@ -1,0 +1,103 @@
+version: '3.8'
+
+services:
+
+  # ── PostgreSQL Database ─────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: safespace-db
+    environment:
+      POSTGRES_USER: safespace
+      POSTGRES_PASSWORD: safespace
+      POSTGRES_DB: safespace
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - safespace-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U safespace"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ── FastAPI Backend ─────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: safespace-backend
+    environment:
+      DATABASE_URL: postgresql://safespace:safespace@postgres:5432/safespace
+      LLM_PROVIDER: groq
+      LLM_MODEL: llama-3.1-8b-instant
+      GROQ_API_KEY: ${GROQ_API_KEY}
+      VOICE_PROVIDER: local
+      ENVIRONMENT: production
+      DEBUG: "False"
+      SECRET_KEY: ${SECRET_KEY:-mysecretkey12345safespace}
+      ENABLE_SCREENING: "True"
+      ENABLE_VOICE_INPUT: "True"
+      ENABLE_GAMIFICATION: "True"
+      ENABLE_EMERGENCY_RESPONSE: "False"
+      ENABLE_LOCATION_MATCHING: "False"
+      CORS_ORIGINS: '["http://localhost:8501","http://frontend:8501"]'
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - safespace-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ── Streamlit Frontend ──────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: safespace-frontend
+    environment:
+      BACKEND_URL: http://backend:8000
+    ports:
+      - "8501:8501"
+    depends_on:
+      - backend
+    networks:
+      - safespace-net
+    restart: unless-stopped
+
+# ── Networks ────────────────────────────────────────────────────
+networks:
+  safespace-net:
+    driver: bridge
+
+# ── Volumes ─────────────────────────────────────────────────────
+volumes:
+  postgres_data:
+
+# ── Usage ───────────────────────────────────────────────────────
+# Start all services:
+#   docker-compose up -d
+#
+# View logs:
+#   docker-compose logs -f backend
+#   docker-compose logs -f frontend
+#
+# Stop all services:
+#   docker-compose down
+#
+# Rebuild after code changes:
+#   docker-compose up -d --build
+#
+# Access:
+#   Frontend  → http://localhost:8501
+#   Backend   → http://localhost:8000
+#   API Docs  → http://localhost:8000/docs
