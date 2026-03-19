@@ -1,6 +1,12 @@
-[build]
-dockerfilePath = "backend/Dockerfile"
-buildCommand = ""
-
 [deploy]
 startCommand = "uvicorn main:app --host 0.0.0.0 --port 8000"
+```
+
+**2. In Railway Settings → Source → Root Directory**, set it back to:
+```
+backend
+```
+
+**3. In Railway Settings → Build → Dockerfile Path**, set it to:
+```
+Dockerfile
