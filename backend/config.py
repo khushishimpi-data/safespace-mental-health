@@ -26,10 +26,11 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     
     # Database
+    # Render provides postgres:// but SQLAlchemy 2.x requires postgresql://
     DATABASE_URL: str = os.getenv(
         "DATABASE_URL",
         "postgresql://safespace:safespace@localhost:5432/safespace"
-    )
+    ).replace("postgres://", "postgresql://", 1)
     MONGODB_URL: str = os.getenv(
         "MONGODB_URL",
         "mongodb://localhost:27017/safespace"
@@ -81,10 +82,13 @@ class Settings(BaseSettings):
     
     # CORS Configuration
     CORS_ORIGINS: list = [
-        "http://localhost:3000",
-        "http://localhost:8501",
-        "http://localhost:8000",
-        "http://localhost",
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ORIGINS",
+            "http://localhost:3000,http://localhost:8501,http://localhost:8000,http://localhost"
+        ).split(",")
+    ] + [
+        "https://*.onrender.com",
     ]
     
     # Email Configuration (for notifications)
